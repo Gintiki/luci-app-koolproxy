@@ -9,11 +9,11 @@ local e="1.7"
 local r="koolproxy"
 local o,t,e
 local v=luci.sys.exec("/usr/share/koolproxy/koolproxy -v")
-local s=luci.sys.exec("head -3 /usr/share/koolproxy/data/koolproxy.txt | grep rules | awk -F' ' '{print $3,$4}'")
-local u=luci.sys.exec("head -4 /usr/share/koolproxy/data/koolproxy.txt | grep video | awk -F' ' '{print $3,$4}'")
-local l=luci.sys.exec("grep -v !x /usr/share/koolproxy/data/koolproxy.txt | wc -l")
+local s=luci.sys.exec("head -3 /usr/share/koolproxy/data/rules/koolproxy.txt | grep rules | awk -F' ' '{print $3,$4}'")
+local u=luci.sys.exec("head -4 /usr/share/koolproxy/data/rules/koolproxy.txt | grep video | awk -F' ' '{print $3,$4}'")
+local l=luci.sys.exec("grep -v !x /usr/share/koolproxy/data/rules/koolproxy.txt | wc -l")
 local i=luci.sys.exec("cat /usr/share/koolproxy/dnsmasq.adblock | wc -l")
-local h=luci.sys.exec("grep -v '^!' /usr/share/koolproxy/data/user.txt | wc -l")
+local h=luci.sys.exec("grep -v '^!' /usr/share/koolproxy/data/rules/user.txt | wc -l")
 
 local function is_running(name)
 	return luci.sys.call("pidof %s >/dev/null" %{name}) == 0
@@ -24,7 +24,7 @@ local function get_status(name)
 end
 
 o=Map(r,translate("koolproxy"),translate("A powerful advertisement blocker. <br /><font color=\"red\">Adblock Plus Host list + koolproxy Blacklist mode runs without loss of bandwidth due to performance issues.<br /></font>"))
-o.template="koolproxy/index"
+--o.template="koolproxy/index"
 t=o:section(TypedSection,"global",translate("Running Status"))
 t.anonymous=true
 e=t:option(DummyValue,"_status",translate("Transparent Proxy"))
@@ -41,10 +41,10 @@ t:tab("logs",translate("View the logs"))
 e=t:taboption("base",Flag,"enabled",translate("Enable"))
 e.default=0
 e.rmempty=false
-e=t:taboption("base",Value, "startup_delay", translate("Startup Delay"))
-e:value(0, translate("Not enabled"))
+e=t:taboption("base",Value, "startup_delay", translate("自启动延时"))
+e:value(0, translate("禁用"))
 for _, v in ipairs({5, 10, 15, 25, 40}) do
-	e:value(v, translate("%u seconds") %{v})
+	e:value(v, translate("%u 秒") %{v})
 end
 e.datatype = "uinteger"
 e.default = 0
@@ -68,9 +68,12 @@ restart=t:taboption("base",Button,"restart",translate("Manually update the koolp
 restart.inputtitle=translate("Update manually")
 restart.inputstyle="reload"
 restart.write=function()
-	luci.sys.call("/usr/share/koolproxy/koolproxyupdate rules 2>&1 >/dev/null")
+	--luci.sys.call("/usr/share/koolproxy/koolproxyupdate rules 2>&1 >/dev/null")
+	luci.sys.call("/usr/share/koolproxy/koolproxyupdate 2>&1 >/dev/null")
 	luci.http.redirect(luci.dispatcher.build_url("admin","services","koolproxy"))
 end
+
+--[[
 update=t:taboption("base",Button,"update",translate("程序更新"))
 update.inputtitle=translate("Update manually")
 update.inputstyle="reload"
@@ -80,7 +83,10 @@ update.write=function()
 	luci.sys.call("/usr/share/koolproxy/koolproxyupdate binary 2>&1 >/dev/null")
 	luci.http.redirect(luci.dispatcher.build_url("admin","services","koolproxy"))
 end
+--]]
 
+e=t:taboption("base",DummyValue,"status0",translate("程序版本"))
+e.value=string.format("[ %s ]", v)
 e=t:taboption("base",DummyValue,"status1",translate("静态规则"))
 e.value=string.format("[ %s共 %s条 ]", s, l)
 e=t:taboption("base",DummyValue,"status2",translate("视频规则"))
@@ -100,7 +106,7 @@ if nixio.fs.access("/usr/share/koolproxy/data/certs/ca.crt")then
 	e.inputtitle=translate("Backup Download")
 	e.inputstyle="reload"
 	e.write=function()
-		luci.sys.call("/usr/share/koolproxy/camanagement backup")
+		luci.sys.call("/usr/share/koolproxy/camanagement backup 2>&1 >/dev/null")
 		Download()
 		luci.http.redirect(luci.dispatcher.build_url("admin","services","koolproxy"))
 	end
@@ -132,7 +138,7 @@ end
 e.write=function(t,t,e)
 	a.writefile(i,e:gsub("\r\n","\n"))
 end
-local i="/usr/share/koolproxy/data/user.txt"
+local i="/usr/share/koolproxy/data/rules/user.txt"
 e=t:taboption("customlist",TextValue,"configfile1")
 e.description=translate("Enter your custom rules, each row.")
 e.rows=28
@@ -184,6 +190,7 @@ e:value("adblock",translate("AdBlock Filter"))
 e:value("ghttps",translate("Global Https Filter"))
 e:value("ahttps",translate("AdBlock Https Filter"))
 
+--[[
 t=o:section(TypedSection,"rss_rule",translate("koolproxy 规则订阅"), translate("请确保Koolproxy兼容规则"))
 t.anonymous=true
 t.addremove=true
@@ -209,6 +216,7 @@ e=t:option(Flag,"load",translate("启用"))
 e.width="10%"
 e.default=0
 e.rmempty=false
+--]]
 
 function Download()
 	local t,e
@@ -244,7 +252,7 @@ function(o,a,i)
 	if i and e then
 		e:close()
 		e=nil
-		luci.sys.call("/usr/share/koolproxy/camanagement restore")
+		luci.sys.call("/usr/share/koolproxy/camanagement restore 2>&1 >/dev/null")
 	end
 end
 )
